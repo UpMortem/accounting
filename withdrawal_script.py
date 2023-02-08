@@ -4,8 +4,8 @@ import requests
 import time
 from categories import CATEGORIES
 
-#OPENAI_API_KEY = "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"
-OPENAI_API_KEY = "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"
+#OPENAI_API_KEY = "X"
+OPENAI_API_KEY = "X"
 cache = dict()
 
 # Function to remove lines starting with "Check"
