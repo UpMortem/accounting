@@ -1,7 +1,7 @@
 # Test code to call OpenAI
 import requests
 import openai
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = "X"
 INPUT = "ADYEN FBO DES:EDI PYMNTS ID:TX10994252700XT INDN:PORTER RANCH SUBWAY IN CO ID:WFBADYENA1 CCD PMT INFO:REF*TN*TX10994252700XT\NTE*INV*SW US 846 38 ZBYPFP676,txid\"
 # Function to get the accounting type from GPT-3
 def get_account_type(input_str):
