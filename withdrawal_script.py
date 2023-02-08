@@ -3,6 +3,7 @@ import re
 import requests
 import time
 from categories import CATEGORIES
+from label_categories import PredictCategory
 
 #OPENAI_API_KEY = "X"
 OPENAI_API_KEY = "X"
@@ -25,40 +26,12 @@ def has_check(input_str):
 def remove_extra(input_str):
     return re.sub('[^A-Z]','',input_str)
 
-# Function to get the accounting type from GPT-3
-def get_category_type(input_str, error_count):
-    if error_count == 3:
-      error_count = 0 
-      return "Ask My Accountant"
-    print("input_str: " + input_str)
-    input_str = input_str.upper()
-    categories = ",".join(CATEGORIES)
-    input_str = ''.join([i for i in input_str if not i.isdigit()])
-    if input_str not in cache:
-        url = 'https://api.openai.com/v1/engines/davinci/completions'
-        headers = {'Authorization': 'Bearer ' + OPENAI_API_KEY}
-        data = {'prompt': "The following closed set of categories are business expense types and only select from these categories, where \"Ask My Accountant\" is default if none are selected:\n\n \"%s\"\n\n \"%s\"\nCategory:"%(categories, input_str), 'max_tokens': 1000, 'top_p': 1.0, 'stream': False, 'temperature': 0.0, 'frequency_penalty': 0.0, 'presence_penalty':0.0}
-        print(data['prompt'])
-        time.sleep(1)
-        response = requests.post(url, headers=headers, json=data)
-        print(response.json())
-        if 'error' in response.json():
-            error_count += 1
-            print("Sleeping 3 seconds")
-            time.sleep(3)
-            return get_category_type(input_str, error_count)
-        sep = '\n'
-        stripped = response.json()['choices'][0]['text'].split(sep, 1)[0]
-        cache[input_str] = stripped.strip().replace("Restaurant", "Meals and Entertainment")
-        print("Summary: " + cache[input_str])
-        error_count = 0 
-        return cache[input_str].strip()
-    else:
-        error_count = 0
-        print("Summary: " + cache[input_str])
-        return cache[input_str].strip() 
-
-
+# Function to get the accounting type
+def get_category_type(predictor, input_str):
+    strings = predictor.encode_strings(input_str)
+    strings = predictor.make_prediction(strings)
+    return predictor.make_prediction(strings)
+  
 def get_merchant_name(input_str):
     longest = ""
     current = ""
@@ -71,7 +44,10 @@ def get_merchant_name(input_str):
             current = ""
     return longest
 
+
+
 # Main program
+predictor = PredictCategory()
 with open("transactions.csv") as csv_file, open("withdrawal_tab.csv", "w") as output_file:
     csv_reader = csv.reader(csv_file, delimiter=",")
 
@@ -82,11 +58,12 @@ with open("transactions.csv") as csv_file, open("withdrawal_tab.csv", "w") as ou
         if line_count > 8 and float(row[2]) > 0.0:
             row[1] = get_merchant_name(row[1])
             row[3] = float(row[2])
-            row[2] = get_category_type(row[1], 0).replace('"','')
-
+            row[2] = get_category_type(predictor, row[1]).replace('"','')
+            my_features.append(row[1])
             # Don't include any checks for withdrawals
             if has_check(row[1]):
                 pass
             else:
                 output_writer.writerow(row)
         line_count += 1
+
