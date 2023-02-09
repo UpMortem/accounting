@@ -9,7 +9,6 @@ from sklearn.preprocessing import OneHotEncoder
 class PredictCategory():
     def __init__(self):
         self.strings = self.read_vendors()
-
         one_hot_encoded_values, le = self.encode_strings(self.strings)
         features = one_hot_encoded_values
  
@@ -20,7 +19,7 @@ class PredictCategory():
 
         return
 
-    def encode_strings(self, strings):
+    def encode_strings(self, strings, shape=0):
         '''Encode a list of strings into numerical and one-hot encoded values'''
         #Create an LabelEncoder object
         le = LabelEncoder()
@@ -31,7 +30,10 @@ class PredictCategory():
         #Create an OneHotEncoder object
         enc = OneHotEncoder()
         #Fit the OneHotEncoder with the numerical values
-        enc.fit(numerical_values.reshape(-1,1))
+        if shape == 0:
+          enc.fit(numerical_values.reshape(-1,1))
+        else:
+          enc.fit(numerical_values.reshape(1,-1))
         #Transform the numerical values into one-hot encoded values
         one_hot_encoded_values = enc.transform(numerical_values.reshape(-1,1)).toarray()
         one_hot_encoded_values = np.array(one_hot_encoded_values)
@@ -48,7 +50,7 @@ class PredictCategory():
 
     def make_prediction(self, features):
         '''Make predictions using the logistic regression model'''
-        help(self.model.predict)
+        self.model.predict
         prediction = self.model.predict(features)
         return prediction
 
