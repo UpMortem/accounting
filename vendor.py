@@ -1,57 +1,50 @@
 import csv
 
-# Read in the final.csv file and create a dictionary mapping descriptions to categories
-final_mapping = {}
-with open('final.csv', 'r') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        description = row['Description'].replace('&amp;', '').replace('&amp;', '')
-        category = row['Category']
-        final_mapping[description] = category
+def count_matching_words(description1, description2):
+    # Convert both descriptions to lowercase and split into words
+    words1 = description1.lower().split()
+    words2 = description2.lower().split()
 
-# Read in the current.csv file and create a list of output rows
-output_rows = []
-with open('current.csv', 'r') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        # Clean up the description
-        description = row['Description'].replace('&amp;', '').replace('&amp;', '').replace('DES', '').split(' ')[0]
-        
-        # Find the longest matching description in the final_mapping dictionary
-        matched_description = ''
-        for final_description in final_mapping:
-            if final_description in description:
-                if len(final_description) > len(matched_description):
-                    matched_description = final_description
-        
-        # Determine the category for the output row
-        if matched_description:
-            category = final_mapping[matched_description]
-        else:
-            category = 'Ask My Accountant'
-        
-        # Determine the vendor for the output row
-        vendor = ''
-        for final_description in final_mapping:
-            if final_description in row['Description']:
-                vendor = row['Description'].split('REF')[0].replace('DES', '').replace('&amp;', '').strip()
-        if not vendor:
-            vendor = row['Description'].replace('&amp;', '').strip()
-        
-        # Add the output row to the list
-        output_rows.append({
-            'Date': row['Date'],
-            'Vendor': vendor,
-            'Description': matched_description or description,
-            'Category': category,
-            'Amount': row['Amount']
-        })
+    # Count the number of matching words
+    matching_words = len(set(words1) & set(words2))
 
-# Write the output rows to a new CSV file
-with open('output.csv', 'w', newline='') as f:
-    fieldnames = ['Date', 'Vendor', 'Description', 'Category', 'Amount']
-    writer = csv.DictWriter(f, fieldnames=fieldnames)
-    writer.writeheader()
-    for row in output_rows:
-        writer.writerow(row)
+    return matching_words
+
+def get_vendor_and_category(description, final_data):
+    max_matching_words = 0
+    vendor = ''
+    category = ''
+    for row in final_data:
+        matching_words = count_matching_words(description, row[2])
+        if matching_words > max_matching_words:
+            max_matching_words = matching_words
+            vendor = row[1]
+            category = row[3]
+
+    if max_matching_words == 0:
+        vendor = description[:50] + '...'
+
+    return vendor, category
+
+def generate_output_csv(final_file, current_file, output_file):
+    with open(final_file, 'r') as f:
+        final_data = list(csv.reader(f))[1:]
+        
+    with open(current_file, 'r') as f:
+        current_data = list(csv.reader(f))[1:]
+        
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Date', 'Vendor', 'Description', 'Category', 'Amount'])
+        for row in current_data:
+            date = row[0]
+            description = row[1]
+            amount = row[2]
+            vendor, category = get_vendor_and_category(description, final_data)
+            if vendor == '':
+                vendor = 'Ask My Accountant'
+                category = ''
+            writer.writerow([date, vendor, description, category, amount])
+
+generate_output_csv('final.csv', 'current.csv', 'output.csv')
 
