@@ -1,50 +1,64 @@
 import csv
+from collections import defaultdict
+import re
 
-def count_matching_words(description1, description2):
-    # Convert both descriptions to lowercase and split into words
-    words1 = description1.lower().split()
-    words2 = description2.lower().split()
+# Read in the final.csv file and store the data in a dictionary
+final_data = defaultdict(list)
+with open('final.csv', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        final_data[row['Description']].append(row)
 
-    # Count the number of matching words
-    matching_words = len(set(words1) & set(words2))
+# Helper function to extract the account number from a description
+def extract_account_number(description):
+    match = re.search(r'XXXXXX(\d+)', description)
+    if match:
+        return match.group(1)
+    return None
 
-    return matching_words
+# Read in the current.csv file and generate the output.csv file
+with open('current.csv', 'r') as f, open('output.csv', 'w', newline='') as out_file:
+    reader = csv.DictReader(f)
+    writer = csv.DictWriter(out_file, fieldnames=['Date', 'Vendor', 'Description', 'Category', 'Amount'])
+    writer.writeheader()
 
-def get_vendor_and_category(description, final_data):
-    max_matching_words = 0
-    vendor = ''
-    category = ''
-    for row in final_data:
-        matching_words = count_matching_words(description, row[2])
-        if matching_words > max_matching_words:
-            max_matching_words = matching_words
-            vendor = row[1]
-            category = row[3]
+    for row in reader:
+        # Find the final.csv entry that matches the most number of words
+        # in the current.csv description
+        description_words = row['Description'].lower().split()
+        matching_entry = None
+        for desc, entries in final_data.items():
+            desc_words = desc.lower().split()
+            num_matches = sum(1 for word in description_words if word in desc_words)
+            if matching_entry is None or num_matches > matching_entry['num_matches']:
+                matching_entry = {'num_matches': num_matches, 'entry': entries[0]}
 
-    if max_matching_words == 0:
-        vendor = description[:50] + '...'
+        # Use the matching final.csv entry to populate the output.csv row
+        if matching_entry['num_matches'] > 0:
+            output_row = {
+                'Date': row['Date'],
+                'Description': row['Description'],
+                'Amount': row['Amount'],
+            }
 
-    return vendor, category
+            # If the vendor starts with "ONLINE TRANSFER", extract the account number
+            vendor = matching_entry['entry']['Vendor']
+            if vendor.startswith('ONLINE TRANSFER'):
+                account_number = extract_account_number(row['Description'])
+                if account_number is not None:
+                    vendor = f"ONLINE TRANSFER {account_number}"
 
-def generate_output_csv(final_file, current_file, output_file):
-    with open(final_file, 'r') as f:
-        final_data = list(csv.reader(f))[1:]
-        
-    with open(current_file, 'r') as f:
-        current_data = list(csv.reader(f))[1:]
-        
-    with open(output_file, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Date', 'Vendor', 'Description', 'Category', 'Amount'])
-        for row in current_data:
-            date = row[0]
-            description = row[1]
-            amount = row[2]
-            vendor, category = get_vendor_and_category(description, final_data)
-            if vendor == '':
-                vendor = 'Ask My Accountant'
-                category = ''
-            writer.writerow([date, vendor, description, category, amount])
+            output_row['Vendor'] = vendor
+            output_row['Category'] = matching_entry['entry']['Category']
+        else:
+            # If there is no matching entry, use "Ask My Accountant" as a placeholder
+            output_row = {
+                'Date': row['Date'],
+                'Vendor': 'Ask My Accountant',
+                'Description': row['Description'],
+                'Category': 'Unknown',
+                'Amount': row['Amount'],
+            }
 
-generate_output_csv('final.csv', 'current.csv', 'output.csv')
+        writer.writerow(output_row)
 
