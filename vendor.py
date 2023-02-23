@@ -54,9 +54,9 @@ with open('current.csv', 'r') as f, open('output.csv', 'w', newline='') as out_f
             # If there is no matching entry, use "Ask My Accountant" as a placeholder
             output_row = {
                 'Date': row['Date'],
-                'Vendor': 'Ask My Accountant',
+                'Vendor': 'UNKNOWN',
                 'Description': row['Description'],
-                'Category': 'Unknown',
+                'Category': 'Ask My Accountant',
                 'Amount': row['Amount'],
             }
 
